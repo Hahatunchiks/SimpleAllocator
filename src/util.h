@@ -3,9 +3,9 @@
 
 #include <stddef.h>
 
-inline size_t size_max( size_t x, size_t y ) { return (x >= y)? x : y ; }
+inline size_t size_max(size_t x, size_t y) { return (x >= y) ? x : y; }
 
-_Noreturn void err( const char* msg, ... );
+_Noreturn void err(const char *msg, ...);
 
 
 #endif
