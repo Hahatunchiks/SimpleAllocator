@@ -3,23 +3,19 @@ BUILDDIR=build
 SRCDIR=src
 CC=gcc
 
-all: $(BUILDDIR)/mem.o $(BUILDDIR)/util.o $(BUILDDIR)/mem_debug.o $(BUILDDIR)/main.o
-	$(CC) -o $(BUILDDIR)/main $^
+.PHONY: clean all
+
+all: $(BUILDDIR)/main
 
 build:
 	mkdir -p $(BUILDDIR)
 
-$(BUILDDIR)/mem.o: $(SRCDIR)/mem.c build
+$(BUILDDIR)/main: $(BUILDDIR)/mem.o $(BUILDDIR)/util.o $(BUILDDIR)/mem_debug.o $(BUILDDIR)/main.o
+	$(CC) -o $@ $^
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c build
 	$(CC) -c $(CFLAGS) $< -o $@
 
-$(BUILDDIR)/mem_debug.o: $(SRCDIR)/mem_debug.c build
-	$(CC) -c $(CFLAGS) $< -o $@
-
-$(BUILDDIR)/util.o: $(SRCDIR)/util.c build
-	$(CC) -c $(CFLAGS) $< -o $@
-
-$(BUILDDIR)/main.o: $(SRCDIR)/main.c build
-	$(CC) -c $(CFLAGS) $< -o $@
 clean:
 	rm -rf $(BUILDDIR)
 
