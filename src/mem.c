@@ -177,7 +177,7 @@ static struct block_header *grow_heap(struct block_header *restrict last, size_t
         return NULL;
     }
 
-    last->next = (struct block_header *) new_region.addr;
+    last->next = new_region.addr;
 
     return new_region.addr;
 
