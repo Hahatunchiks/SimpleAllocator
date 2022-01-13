@@ -1,12 +1,7 @@
-#include <stdarg.h>
-
 #define _DEFAULT_SOURCE
 
 #include <unistd.h>
-#include <stdio.h>
 #include <stddef.h>
-#include <stdlib.h>
-#include <assert.h>
 
 #include "mem_internals.h"
 #include "mem.h"
@@ -86,7 +81,7 @@ static bool split_if_too_big(struct block_header *block, size_t query) {
         return false;
     }
 
-    const block_capacity required =  {.bytes = query};
+    const block_capacity required = {.bytes = query};
     const block_size next_size = (block_size) {.bytes = block->capacity.bytes - required.bytes};
     block->capacity = required;
 
@@ -119,7 +114,8 @@ static bool mergeable(struct block_header const *restrict fst, struct block_head
 
 static bool try_merge_with_next(struct block_header *block) {
     if (block != NULL && block->next != NULL && mergeable(block, block->next)) {
-        block->capacity = (block_capacity) {.bytes = size_from_capacity(block->next->capacity).bytes + block->capacity.bytes};
+        block->capacity = (block_capacity) {.bytes = size_from_capacity(block->next->capacity).bytes +
+                                                     block->capacity.bytes};
         block->next = block->next->next;
         return true;
     }
@@ -140,27 +136,37 @@ struct block_search_result {
 
 static struct block_search_result find_good_or_last(struct block_header *restrict block, size_t sz) {
 
-
     struct block_header *it = block;
 
     while (it) {
-
         if (it->is_free && block_is_big_enough(sz, it)) {
-            split_if_too_big( it, sz );
             return (struct block_search_result) {.type = BSR_FOUND_GOOD_BLOCK, .block = it};
-        } else if(it->is_free && try_merge_with_next(it)) {
+
+        } else if (it->next == NULL) {
+            return (struct block_search_result) {.type = BSR_REACHED_END_NOT_FOUND, .block = it};
+
+        } else if (it->is_free) {
+            while (try_merge_with_next(it));
             continue;
+
         }
+
         it = it->next;
     }
-    return (struct block_search_result) {.type = BSR_REACHED_END_NOT_FOUND, .block = it};
+
+    return (struct block_search_result) {.type = BSR_CORRUPTED, .block = it};
+
 }
 
 /*  Попробовать выделить память в куче начиная с блока `block` не пытаясь расширить кучу
  Можно переиспользовать как только кучу расширили. */
 static struct block_search_result try_memalloc_existing(size_t query, struct block_header *block) {
-
-    return find_good_or_last(block, query);;
+    struct block_search_result res = find_good_or_last(block, query);
+    if(res.type == BSR_FOUND_GOOD_BLOCK) {
+        split_if_too_big(block, query);
+        block->is_free = false;
+    }
+    return res;
 }
 
 
@@ -168,15 +174,12 @@ static struct block_header *grow_heap(struct block_header *restrict last, size_t
 
     struct region new_region = alloc_region(block_after(last), query);
     if (region_is_invalid(&new_region)) {
-        new_region = alloc_region(NULL, query);
-        if (region_is_invalid(&new_region)) {
-            return NULL;
-        }
+        return NULL;
     }
 
     last->next = (struct block_header *) new_region.addr;
 
-    return (struct block_header *) new_region.addr;
+    return new_region.addr;
 
 }
 
@@ -191,7 +194,8 @@ static struct block_header *memalloc(size_t query, struct block_header *heap_sta
     }
 
     if (alloc_res.type == BSR_REACHED_END_NOT_FOUND) {
-        struct block_header *new_region_header = grow_heap(heap_start, size_from_capacity( ( block_capacity ) { query } ).bytes);
+        struct block_header *new_region_header = grow_heap(heap_start,
+                                                           size_from_capacity((block_capacity) {query}).bytes);
 
         if (new_region_header == NULL) {
             return NULL;
@@ -203,7 +207,7 @@ static struct block_header *memalloc(size_t query, struct block_header *heap_sta
         }
 
     }
-    alloc_res.block->is_free = false;
+
     return alloc_res.block;
 }
 
@@ -212,8 +216,7 @@ void *_malloc(size_t query) {
     struct block_header *const addr = memalloc(query, (struct block_header *) HEAP_START);
     if (addr) {
         return addr->contents;
-    }
-    else {
+    } else {
         return NULL;
     }
 }
@@ -227,10 +230,5 @@ void _free(void *mem) {
     struct block_header *header = block_get_header(mem);
     header->is_free = true;
     /*  ??? */
-    while (1) {
-        bool res = try_merge_with_next(header);
-        if (res == false) break;
-    }
-
-
+    while (try_merge_with_next(header));
 }

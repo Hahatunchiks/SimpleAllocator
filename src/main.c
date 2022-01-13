@@ -1,9 +1,6 @@
 #include "mem.h"
 #include "util.h"
-#include "mem_internals.h"
-
 #include <stdio.h>
-#include <stdlib.h>
 
 int main() {
 
@@ -71,7 +68,7 @@ int main() {
     debug_heap(stdout, heap);
 
 
-    printf("Test 5: New region is not close to the old");
+    printf("Test 5: New region is close to the old");
 
     void *mem_res_zero_5 = _malloc(8188);
     int *mem_res_one_5 = _malloc(sizeof(int));
