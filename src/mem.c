@@ -139,18 +139,14 @@ static struct block_search_result find_good_or_last(struct block_header *restric
     struct block_header *it = block;
 
     while (it) {
+        while (try_merge_with_next(it));
         if (it->is_free && block_is_big_enough(sz, it)) {
             return (struct block_search_result) {.type = BSR_FOUND_GOOD_BLOCK, .block = it};
 
         } else if (it->next == NULL) {
             return (struct block_search_result) {.type = BSR_REACHED_END_NOT_FOUND, .block = it};
 
-        } else if (it->is_free) {
-            while (try_merge_with_next(it));
-            continue;
-
         }
-
         it = it->next;
     }
 
